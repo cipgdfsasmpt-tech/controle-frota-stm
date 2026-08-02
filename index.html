@@ -38,7 +38,12 @@
         .btn-editar:hover { background-color: #fff3cd; color: #856404; }
         .btn-salvar { background: #0a2a59; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 1rem; margin-top: 10px; font-weight: bold; }
         .btn-salvar:hover { background: #0a1f42; }
-        .conteudo-texto textarea { width: 100%; height: 150px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; resize: vertical; font-family: Arial, sans-serif; }
+        
+        /* Estilo especial para a aba Informações */
+        .conteudo-texto { display: flex; flex-direction: column; gap: 15px; margin-top: 10px; }
+        .conteudo-texto textarea { width: 100%; height: 200px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; resize: vertical; font-family: Arial, sans-serif; font-size: 1rem; }
+        .btn-salvar-info { background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; align-self: flex-start; }
+        .btn-salvar-info:hover { background: #218838; }
         
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
         .modal-conteudo { background-color: #fefefe; padding: 25px; border: 1px solid #888; width: 90%; max-width: 500px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; max-height: 90vh; overflow-y: auto; }
@@ -54,6 +59,7 @@
             .stat-box span { font-size: 0.75rem; }
             .stat-box span:first-child { font-size: 1.5rem; }
             th, td { font-size: 0.85rem; padding: 8px 5px; }
+            .btn-salvar-info { width: 100%; text-align: center; }
         }
     </style>
 </head>
@@ -115,11 +121,13 @@
             <div class="tabela-container"><table><thead><tr><th>Prefixo</th><th>Quant.</th><th>Situação</th><th>Ações</th></tr></thead><tbody id="tabela-multas"></tbody></table></div>
         </section>
 
+        <!-- SEÇÃO INFORMAÇÕES AGORA COM BOTÃO DE SALVAR -->
         <section id="info" class="secao">
             <div class="header-secao"><h2>OUTRAS INFORMAÇÕES</h2></div>
             <div class="conteudo-texto">
                 <p>Espaço para avisos gerais, comunicados e instruções.</p>
                 <textarea id="area-info" placeholder="Digite suas anotações aqui..."></textarea>
+                <button class="btn-salvar-info" onclick="salvarInformacoes()">💾 Salvar Anotações</button>
             </div>
         </section>
 
@@ -182,14 +190,17 @@
             ],
             diversos: [
                 { id: 7, data: '01/08', assunto: 'EPIs', descricao: 'Compra de coletes', status: 'Em andamento' }
-            ]
+            ],
+            infoText: '' // Campo extra para salvar o texto da aba Informações
         };
 
         function carregarLocalStorage() {
             const salvos = localStorage.getItem('frotaStmDados');
             if (salvos) {
                 try {
-                    dados = JSON.parse(salvos);
+                    const parsed = JSON.parse(salvos);
+                    // Mescla os dados antigos com os novos para não perder estrutura se adicionarmos algo novo
+                    dados = { ...dados, ...parsed };
                 } catch (e) {
                     console.log("Erro ao carregar cache, usando padrão.");
                 }
@@ -238,7 +249,19 @@
             document.getElementById('tabela-prog-semana').innerHTML = dados.progSemana.map(m => gerarLinha(m, 'prog-semana', ['data', 'horario', 'atividade', 'responsavel'])).join('');
             document.getElementById('tabela-prog-mes').innerHTML = dados.progMes.map(m => gerarLinha(m, 'prog-mes', ['periodo', 'evento', 'local', 'observacoes'])).join('');
             document.getElementById('tabela-diversos').innerHTML = dados.diversos.map(m => gerarLinha(m, 'diversos', ['data', 'assunto', 'descricao', 'status'])).join('');
+            
+            // Carregar o texto da aba Informações
+            document.getElementById('area-info').value = dados.infoText || '';
+            
             atualizarStats();
+        }
+
+        // --- NOVA FUNÇÃO PARA SALVAR A ABA INFORMAÇÕES ---
+        function salvarInformacoes() {
+            const texto = document.getElementById('area-info').value;
+            dados.infoText = texto;
+            salvarLocalStorage();
+            alert("✅ Anotações salvas com sucesso!");
         }
 
         let tipoModal = '';
@@ -313,7 +336,7 @@
             salvarLocalStorage();
             fecharModal();
             carregarDados();
-            alert("✅ Item salvo com sucesso no seu navegador!");
+            alert("✅ Item salvo com sucesso!");
         }
 
         window.onclick = function(event) {
