@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Controle de Frota - STM</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a2a59">
+    
+    <style>
+        /* --- CSS COMPLETO --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { background-color: #f4f6f9; padding: 20px; }
+        header { background: #0a2a59; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .logo h1 { font-size: 1.5rem; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+        .stat-box { background: white; color: #0a2a59; padding: 10px; border-radius: 8px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .stat-box span { font-size: 0.85rem; font-weight: bold; display: block; }
+        .stat-box span:first-child { font-size: 1.8rem; margin-bottom: 5px; }
+        .menu { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+        .menu button { padding: 10px 15px; border: none; background: #ddd; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; font-size: 0.9rem; }
+        .menu button.active { background: #0a2a59; color: white; }
+        .menu button:hover { opacity: 0.8; }
+        .secao { display: none; margin-top: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .secao.ativa { display: block; }
+        .header-secao { display: flex; justify-content: space-between; align-items: center; background: #0a2a59; color: white; padding: 10px 15px; border-radius: 6px 6px 0 0; margin: -15px -15px 15px -15px; }
+        .header-secao h2 { font-size: 1.2rem; margin: 0; }
+        #manutencoes .header-secao { background-color: #2d6a4f; }
+        #multas .header-secao { background-color: #c1121f; }
+        .tabela-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; font-size: 0.95rem; }
+        th { background-color: #e9ecef; color: #333; white-space: nowrap; }
+        tr:hover { background-color: #f1f1f1; }
+        .btn-add { background: #ffc107; color: #333; border: none; padding: 6px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-add:hover { background: #e0a800; }
+        .btn-acao { background: none; border: none; cursor: pointer; font-size: 1.2rem; padding: 2px 6px; border-radius: 4px; }
+        .btn-editar:hover { background-color: #fff3cd; color: #856404; }
+        .btn-salvar { background: #0a2a59; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 1rem; margin-top: 10px; font-weight: bold; }
+        .btn-salvar:hover { background: #0a1f42; }
+        .conteudo-texto textarea { width: 100%; height: 150px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; resize: vertical; font-family: Arial, sans-serif; }
+        
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal-conteudo { background-color: #fefefe; padding: 25px; border: 1px solid #888; width: 90%; max-width: 500px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; max-height: 90vh; overflow-y: auto; }
+        .fechar { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 1; }
+        .fechar:hover { color: black; }
+        #modal-titulo { margin-top: 5px; margin-bottom: 15px; color: #0a2a59; }
+        .modal-conteudo input, .modal-conteudo select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+
+        @media (max-width: 600px) {
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .header-secao { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .menu button { flex: 1; text-align: center; font-size: 0.8rem; padding: 8px 5px; }
+            .stat-box span { font-size: 0.75rem; }
+            .stat-box span:first-child { font-size: 1.5rem; }
+            th, td { font-size: 0.85rem; padding: 8px 5px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <h1>CONTROLE DE FROTA - STM</h1>
+            <p>Cia Independente Guarda - PMBA</p>
+        </div>
+        <div class="stats">
+            <div class="stat-box"><span>🚔</span> <span>VIATURAS OPERACIONAIS</span> <span id="total-op">0</span></div>
+            <div class="stat-box"><span>🔧</span> <span>MANUTENÇÃO</span> <span id="total-manut">0</span></div>
+            <div class="stat-box"><span>🚫</span> <span>BAIXADAS</span> <span id="total-baix">0</span></div>
+            <div class="stat-box"><span>🏍️</span> <span>MOTOS OPERACIONAIS</span> <span id="total-motos-op">0</span></div>
+        </div>
+    </header>
+
+    <nav class="menu">
+        <button onclick="mostrarSecao('vtr4rodas', this)" class="active">🚗 VTR 4 RODAS</button>
+        <button onclick="mostrarSecao('vtr2rodas', this)">🏍️ VTR 2 RODAS</button>
+        <button onclick="mostrarSecao('manutencoes', this)">🔧 MANUTENÇÕES</button>
+        <button onclick="mostrarSecao('multas', this)">🚨 MULTAS</button>
+        <button onclick="mostrarSecao('info', this)">ℹ️ INFORMAÇÕES</button>
+        <button onclick="mostrarSecao('prog-semana', this)">📅 PROG. SEMANA</button>
+        <button onclick="mostrarSecao('prog-mes', this)">📆 PROG. MENSAL</button>
+        <button onclick="mostrarSecao('diversos', this)">📋 DIVERSOS</button>
+    </nav>
+
+    <main>
+        <section id="vtr4rodas" class="secao ativa">
+            <div class="header-secao">
+                <h2>VTR 4 RODAS</h2>
+                <button onclick="abrirModal('vtr4', null)" class="btn-add">+ Adicionar VTR</button>
+            </div>
+            <div class="tabela-container"><table><thead><tr><th>Prefixo</th><th>Placa</th><th>KM</th><th>Próx. Rev.</th><th>Situação</th><th>Obs</th><th>Ações</th></tr></thead><tbody id="tabela-vtr4"></tbody></table></div>
+        </section>
+
+        <section id="vtr2rodas" class="secao">
+            <div class="header-secao">
+                <h2>VTR 2 RODAS</h2>
+                <button onclick="abrirModal('vtr2', null)" class="btn-add">+ Adicionar Moto</button>
+            </div>
+            <div class="tabela-container"><table><thead><tr><th>Prefixo</th><th>Placa</th><th>KM</th><th>Próx. Rev.</th><th>Situação</th><th>Obs</th><th>Ações</th></tr></thead><tbody id="tabela-vtr2"></tbody></table></div>
+        </section>
+
+        <section id="manutencoes" class="secao">
+            <div class="header-secao">
+                <h2>MANUTENÇÕES</h2>
+                <button onclick="abrirModal('manutencao', null)" class="btn-add">+ Adicionar Manut.</button>
+            </div>
+            <div class="tabela-container"><table><thead><tr><th>Veículo</th><th>O.S.</th><th>Serviço</th><th>Oficina</th><th>Situação</th><th>Ações</th></tr></thead><tbody id="tabela-manutencao"></tbody></table></div>
+        </section>
+
+        <section id="multas" class="secao">
+            <div class="header-secao">
+                <h2>MULTAS</h2>
+                <button onclick="abrirModal('multa', null)" class="btn-add">+ Adicionar Multa</button>
+            </div>
+            <div class="tabela-container"><table><thead><tr><th>Prefixo</th><th>Quant.</th><th>Situação</th><th>Ações</th></tr></thead><tbody id="tabela-multas"></tbody></table></div>
+        </section>
+
+        <section id="info" class="secao">
+            <div class="header-secao"><h2>OUTRAS INFORMAÇÕES</h2></div>
+            <div class="conteudo-texto">
+                <p>Espaço para avisos gerais, comunicados e instruções.</p>
+                <textarea id="area-info" placeholder="Digite suas anotações aqui..."></textarea>
+            </div>
+        </section>
+
+        <section id="prog-semana" class="secao">
+            <div class="header-secao">
+                <h2>PROG. SEMANA</h2>
+                <button onclick="abrirModal('prog-semana', null)" class="btn-add">+ Adicionar</button>
+            </div>
+            <div class="tabela-container"><table><thead><tr><th>Data</th><th>Horário</th><th>Atividade</th><th>Responsável</th><th>Ações</th></tr></thead><tbody id="tabela-prog-semana"></tbody></table></div>
+        </section>
+
+        <section id="prog-mes" class="secao">
+            <div class="header-secao">
+                <h2>PROG. MENSAL</h2>
+                <button onclick="abrirModal('prog-mes', null)" class="btn-add">+ Adicionar</button>
+            </div>
+            <div class="tabela-container"><table><thead><tr><th>Período</th><th>Evento</th><th>Local</th><th>Obs</th><th>Ações</th></tr></thead><tbody id="tabela-prog-mes"></tbody></table></div>
+        </section>
+
+        <section id="diversos" class="secao">
+            <div class="header-secao">
+                <h2>DIVERSOS</h2>
+                <button onclick="abrirModal('diversos', null)" class="btn-add">+ Adicionar</button>
+            </div>
+            <div class="tabela-container"><table><thead><tr><th>Data</th><th>Assunto</th><th>Descrição</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tabela-diversos"></tbody></table></div>
+        </section>
+    </main>
+
+    <div id="modal" class="modal">
+        <div class="modal-conteudo">
+            <span class="fechar" onclick="fecharModal()">&times;</span>
+            <h3 id="modal-titulo">Adicionar Novo Item</h3>
+            <form id="form-modal" onsubmit="salvarItem(event)">
+                <div id="campos-dinamicos"></div>
+                <button type="submit" class="btn-salvar">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // --- JAVASCRIPT COMPLETO ---
+        let dados = {
+            vtr4: [
+                { id: 1, prefixo: 'V-01', placa: 'ABC-1234', km: '45.000', revisao: '50.000', situacao: 'Operacional', obs: 'Trocar pneus' }
+            ],
+            vtr2: [
+                { id: 2, prefixo: 'M-01', placa: 'MOT-1111', km: '5.000', revisao: '10.000', situacao: 'Operacional', obs: '' }
+            ],
+            manutencoes: [
+                { id: 3, veiculo: 'V-02', os: '2026-001', servico: 'Troca de Óleo', oficina: 'Mecânica', situacao: 'Em Andamento' }
+            ],
+            multas: [
+                { id: 4, prefixo: 'V-01', quantidade: '1', situacao: 'Paga' }
+            ],
+            progSemana: [
+                { id: 5, data: '02/08', horario: '08:00', atividade: 'Briefing', responsavel: 'Cmte' }
+            ],
+            progMes: [
+                { id: 6, periodo: 'Agosto', evento: 'Curso', local: 'Auditório', observacoes: '' }
+            ],
+            diversos: [
+                { id: 7, data: '01/08', assunto: 'EPIs', descricao: 'Compra de coletes', status: 'Em andamento' }
+            ]
+        };
+
+        function carregarLocalStorage() {
+            const salvos = localStorage.getItem('frotaStmDados');
+            if (salvos) {
+                try {
+                    dados = JSON.parse(salvos);
+                } catch (e) {
+                    console.log("Erro ao carregar cache, usando padrão.");
+                }
+            }
+        }
+        carregarLocalStorage();
+
+        function salvarLocalStorage() {
+            localStorage.setItem('frotaStmDados', JSON.stringify(dados));
+        }
+
+        function mostrarSecao(id, btn) {
+            document.querySelectorAll('.secao').forEach(sec => sec.classList.remove('ativa'));
+            document.getElementById(id).classList.add('ativa');
+            document.querySelectorAll('.menu button').forEach(b => b.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+        }
+
+        function gerarLinha(item, tipo, campos) {
+            let acoes = `<td><button class="btn-acao btn-editar" onclick="abrirModal('${tipo}', ${item.id})">✏️</button></td>`;
+            let linha = '<tr>';
+            campos.forEach(campo => { linha += `<td>${item[campo] || ''}</td>`; });
+            linha += acoes + '</tr>';
+            return linha;
+        }
+
+        function atualizarStats() {
+            let op4 = dados.vtr4.filter(v => v.situacao === 'Operacional').length;
+            let op2 = dados.vtr2.filter(v => v.situacao === 'Operacional').length;
+            let baix4 = dados.vtr4.filter(v => v.situacao === 'Baixado').length;
+            let baix2 = dados.vtr2.filter(v => v.situacao === 'Baixado').length;
+            let manut4 = dados.vtr4.filter(v => v.situacao === 'Em Manutenção').length;
+            let manut2 = dados.vtr2.filter(v => v.situacao === 'Em Manutenção').length;
+
+            document.getElementById('total-op').innerText = op4 + op2;
+            document.getElementById('total-manut').innerText = manut4 + manut2;
+            document.getElementById('total-baix').innerText = baix4 + baix2;
+            document.getElementById('total-motos-op').innerText = op2;
+        }
+
+        function carregarDados() {
+            document.getElementById('tabela-vtr4').innerHTML = dados.vtr4.map(v => gerarLinha(v, 'vtr4', ['prefixo', 'placa', 'km', 'revisao', 'situacao', 'obs'])).join('');
+            document.getElementById('tabela-vtr2').innerHTML = dados.vtr2.map(v => gerarLinha(v, 'vtr2', ['prefixo', 'placa', 'km', 'revisao', 'situacao', 'obs'])).join('');
+            document.getElementById('tabela-manutencao').innerHTML = dados.manutencoes.map(m => gerarLinha(m, 'manutencao', ['veiculo', 'os', 'servico', 'oficina', 'situacao'])).join('');
+            document.getElementById('tabela-multas').innerHTML = dados.multas.map(m => gerarLinha(m, 'multa', ['prefixo', 'quantidade', 'situacao'])).join('');
+            document.getElementById('tabela-prog-semana').innerHTML = dados.progSemana.map(m => gerarLinha(m, 'prog-semana', ['data', 'horario', 'atividade', 'responsavel'])).join('');
+            document.getElementById('tabela-prog-mes').innerHTML = dados.progMes.map(m => gerarLinha(m, 'prog-mes', ['periodo', 'evento', 'local', 'observacoes'])).join('');
+            document.getElementById('tabela-diversos').innerHTML = dados.diversos.map(m => gerarLinha(m, 'diversos', ['data', 'assunto', 'descricao', 'status'])).join('');
+            atualizarStats();
+        }
+
+        let tipoModal = '';
+        let idEditando = null;
+
+        function abrirModal(tipo, id = null) {
+            tipoModal = tipo;
+            idEditando = id;
+            document.getElementById('modal').style.display = 'flex';
+            document.getElementById('modal-titulo').innerText = id ? 'Editar Item' : 'Adicionar Novo Item';
+            
+            let item = null;
+            if (id !== null) {
+                const lista = dados[tipo];
+                item = lista.find(i => i.id === id);
+            }
+            preencherCampos(item);
+        }
+
+        function preencherCampos(item) {
+            const campos = document.getElementById('campos-dinamicos');
+            if (tipoModal === 'vtr4' || tipoModal === 'vtr2') {
+                campos.innerHTML = `<input type="text" id="f-prefixo" placeholder="Prefixo" required value="${item ? item.prefixo : ''}"><input type="text" id="f-placa" placeholder="Placa" required value="${item ? item.placa : ''}"><input type="text" id="f-km" placeholder="KM" required value="${item ? item.km : ''}"><input type="text" id="f-revisao" placeholder="Revisão" required value="${item ? item.revisao : ''}"><select id="f-situacao"><option value="Operacional" ${item && item.situacao === 'Operacional' ? 'selected' : ''}>Operacional</option><option value="Em Manutenção" ${item && item.situacao === 'Em Manutenção' ? 'selected' : ''}>Em Manutenção</option><option value="Baixado" ${item && item.situacao === 'Baixado' ? 'selected' : ''}>Baixado</option></select><input type="text" id="f-obs" placeholder="Observações" value="${item ? item.obs : ''}">`;
+            } else if (tipoModal === 'manutencao') {
+                campos.innerHTML = `<input type="text" id="f-veiculo" placeholder="Veículo" required value="${item ? item.veiculo : ''}"><input type="text" id="f-os" placeholder="O.S." required value="${item ? item.os : ''}"><input type="text" id="f-servico" placeholder="Serviço" required value="${item ? item.servico : ''}"><input type="text" id="f-oficina" placeholder="Oficina" required value="${item ? item.oficina : ''}"><select id="f-situacao"><option value="Em Andamento" ${item && item.situacao === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option><option value="Concluído" ${item && item.situacao === 'Concluído' ? 'selected' : ''}>Concluído</option><option value="Aguardando Peça" ${item && item.situacao === 'Aguardando Peça' ? 'selected' : ''}>Aguardando Peça</option></select>`;
+            } else if (tipoModal === 'multa') {
+                campos.innerHTML = `<input type="text" id="f-prefixo" placeholder="Prefixo" required value="${item ? item.prefixo : ''}"><input type="text" id="f-quant" placeholder="Quantidade" required value="${item ? item.quantidade : ''}"><select id="f-situacao"><option value="Pendente" ${item && item.situacao === 'Pendente' ? 'selected' : ''}>Pendente</option><option value="Paga" ${item && item.situacao === 'Paga' ? 'selected' : ''}>Paga</option><option value="Recorrendo" ${item && item.situacao === 'Recorrendo' ? 'selected' : ''}>Recorrendo</option></select>`;
+            } else if (tipoModal === 'prog-semana') {
+                campos.innerHTML = `<input type="text" id="f-data" placeholder="Data" required value="${item ? item.data : ''}"><input type="text" id="f-horario" placeholder="Horário" required value="${item ? item.horario : ''}"><input type="text" id="f-atividade" placeholder="Atividade" required value="${item ? item.atividade : ''}"><input type="text" id="f-responsavel" placeholder="Responsável" required value="${item ? item.responsavel : ''}">`;
+            } else if (tipoModal === 'prog-mes') {
+                campos.innerHTML = `<input type="text" id="f-periodo" placeholder="Período" required value="${item ? item.periodo : ''}"><input type="text" id="f-evento" placeholder="Evento" required value="${item ? item.evento : ''}"><input type="text" id="f-local" placeholder="Local" required value="${item ? item.local : ''}"><input type="text" id="f-observacoes" placeholder="Observações" value="${item ? item.observacoes : ''}">`;
+            } else if (tipoModal === 'diversos') {
+                campos.innerHTML = `<input type="text" id="f-data" placeholder="Data" required value="${item ? item.data : ''}"><input type="text" id="f-assunto" placeholder="Assunto" required value="${item ? item.assunto : ''}"><input type="text" id="f-descricao" placeholder="Descrição" required value="${item ? item.descricao : ''}"><select id="f-status"><option value="Em andamento" ${item && item.status === 'Em andamento' ? 'selected' : ''}>Em andamento</option><option value="Concluído" ${item && item.status === 'Concluído' ? 'selected' : ''}>Concluído</option><option value="Pendente" ${item && item.status === 'Pendente' ? 'selected' : ''}>Pendente</option></select>`;
+            }
+        }
+
+        function fecharModal() {
+            document.getElementById('modal').style.display = 'none';
+            idEditando = null;
+        }
+
+        function salvarItem(e) {
+            e.preventDefault();
+            let novoItem = {};
+            try {
+                if (tipoModal === 'vtr4' || tipoModal === 'vtr2') {
+                    novoItem = { prefixo: document.getElementById('f-prefixo').value, placa: document.getElementById('f-placa').value, km: document.getElementById('f-km').value, revisao: document.getElementById('f-revisao').value, situacao: document.getElementById('f-situacao').value, obs: document.getElementById('f-obs').value || '' };
+                } else if (tipoModal === 'manutencao') {
+                    novoItem = { veiculo: document.getElementById('f-veiculo').value, os: document.getElementById('f-os').value, servico: document.getElementById('f-servico').value, oficina: document.getElementById('f-oficina').value, situacao: document.getElementById('f-situacao').value };
+                } else if (tipoModal === 'multa') {
+                    novoItem = { prefixo: document.getElementById('f-prefixo').value, quantidade: document.getElementById('f-quant').value, situacao: document.getElementById('f-situacao').value };
+                } else if (tipoModal === 'prog-semana') {
+                    novoItem = { data: document.getElementById('f-data').value, horario: document.getElementById('f-horario').value, atividade: document.getElementById('f-atividade').value, responsavel: document.getElementById('f-responsavel').value };
+                } else if (tipoModal === 'prog-mes') {
+                    novoItem = { periodo: document.getElementById('f-periodo').value, evento: document.getElementById('f-evento').value, local: document.getElementById('f-local').value, observacoes: document.getElementById('f-observacoes').value || '' };
+                } else if (tipoModal === 'diversos') {
+                    novoItem = { data: document.getElementById('f-data').value, assunto: document.getElementById('f-assunto').value, descricao: document.getElementById('f-descricao').value, status: document.getElementById('f-status').value };
+                }
+            } catch (err) {
+                alert("Erro nos campos: " + err.message); return;
+            }
+
+            const lista = dados[tipoModal];
+            if (idEditando !== null) {
+                let index = lista.findIndex(i => i.id === idEditando);
+                if (index !== -1) lista[index] = { ...lista[index], ...novoItem };
+            } else {
+                novoItem.id = Date.now();
+                lista.push(novoItem);
+            }
+
+            salvarLocalStorage();
+            fecharModal();
+            carregarDados();
+            alert("✅ Item salvo com sucesso no seu navegador!");
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('modal');
+            if (event.target == modal) fecharModal();
+        }
+
+        carregarDados();
+    </script>
+</body>
+</html>
